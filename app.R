@@ -2,6 +2,8 @@ library(shiny)
 library(bslib)
 library(dplyr)
 library(scales)
+library(ggplot2)
+library(plotly)
 
 df_pr <- readRDS("exportacoes_pr.rds")
 
@@ -35,6 +37,12 @@ ui <- page_navbar(
         value = textOutput("kpi_volume"),
         theme = "info"
       )
+    ),
+    layout_columns(
+      card(
+        card_header("Sazonalidade Mensal das Exportações (FOB)"),
+        plotlyOutput("graf_sazonalidade")
+      )
     )
   ),
   
@@ -66,6 +74,20 @@ server <- function(input, output, session){
     total_t <- sum(dados_filtrados()$TONELADAS, na.rm = TRUE)
     paste(number(total_t, scale_cut = cut_short_scale()), "t")
   })
+  
+  output$graf_sazonalidade <- renderPlotly({
+    dados_mes <- dados_filtrados() |> 
+      group_by(MES) |> 
+      summarise(receita = sum(VL_FOB, na.rm = TRUE), .groups = "drop")
+  
+  p <- ggplot(dados_mes, aes(x = MES, y = receita, group = 1)) +
+    geom_line(color = "#2c3e50", linewidth = 1) +
+    geom_point(color = "#2c3e50", size = 2.5) +
+    scale_y_continuous(labels = dollar_format(prefix = "US$", scale_cut = cut_short_scale())) +
+    labs(x = "Mes", y = "Receita (FOB)")
+  
+  ggplotly(p)
+    })
 }
 
 shinyApp(ui, server)
